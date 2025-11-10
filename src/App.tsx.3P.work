@@ -478,8 +478,8 @@ export default function App(){
 
   // Grid with gutters; center never disappears
   const gridCols = guideOpen
-    ? `${cols[0]}fr 10px ${cols[1]}fr 10px ${cols[2]}fr`
-    : `${cols[0]}fr 10px ${cols[1] + cols[2]}fr`;
+    ? `${cols[0]}fr 8px ${cols[1]}fr 8px ${cols[2]}fr`
+    : `${cols[0]}fr 8px ${cols[1] + cols[2]}fr`;
   const gridAreas = guideOpen
     ? `"left gutter1 center gutter2 right"`
     : `"left gutter1 center"`;
@@ -542,7 +542,7 @@ export default function App(){
           ...st.columns,
           gridTemplateColumns: gridCols,
           gridTemplateAreas: gridAreas,
-          alignItems: "stretch", // make gutters full-height and grabbable
+          alignItems: "start",
         }}
       >
         {/* ================= LEFT SIDEBAR ================= */}
@@ -609,10 +609,7 @@ export default function App(){
         <div
           style={{ gridArea: "gutter1" }}
           onMouseDown={startDrag("L-C")}
-          onDoubleClick={() => setCols([1,1,1])}
-          className="h-full cursor-col-resize bg-white/10 hover:bg-white/20 transition-colors"
-          role="separator"
-          aria-orientation="vertical"
+          className="h-full cursor-col-resize bg-white/5 hover:bg-white/10"
           aria-label="Resize left/center"
         />
 
@@ -745,10 +742,7 @@ export default function App(){
           <div
             style={{ gridArea: "gutter2" }}
             onMouseDown={startDrag("C-R")}
-            onDoubleClick={() => setCols([1,1,1])}
-            className="h-full cursor-col-resize bg-white/10 hover:bg-white/20 transition-colors"
-            role="separator"
-            aria-orientation="vertical"
+            className="h-full cursor-col-resize bg-white/5 hover:bg-white/10"
             aria-label="Resize center/right"
           />
         )}
@@ -758,7 +752,6 @@ export default function App(){
           <aside style={{ gridArea: "right" }} className="min-w-0 pl-2">
             <div className="rounded-xl bg-[#161922] p-3 md:p-2 shadow border-l border-white/10 h-full overflow-auto">
               <TrainingPanel
-                key={`${scenarioIdx}-${stepIdx}`}   // force fresh render on step/scene change
                 open
                 scenarioIdx={scenarioIdx}
                 stepIdx={stepIdx}
