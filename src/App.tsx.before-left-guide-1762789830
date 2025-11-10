@@ -123,7 +123,7 @@ function policyUpliftExpectedWin(rows:Row[], budgetFrac:number, P:Params){
 }
 
 /* ---------- Tiny Chart ---------- */
-function TinyChart({data}: { data:number[]}) {
+function TinyChart({data}:{data:number[]}) {
   const ref=useRef<HTMLCanvasElement|null>(null);
   useEffect(()=>{
     const c=ref.current; if(!c) return;
@@ -144,7 +144,17 @@ function TinyChart({data}: { data:number[]}) {
 /* ---------- Animated DAG ---------- */
 type DagLabels = { W:string; M:string; S:string; T:string; I:string };
 
-function DagCanvas({ P, backdoorOK, frontdoorOK, labels }: { P: Params; backdoorOK: boolean; frontdoorOK: boolean; labels?: DagLabels; }) {
+function DagCanvas({
+  P,
+  backdoorOK,
+  frontdoorOK,
+  labels
+}: {
+  P: Params;
+  backdoorOK: boolean;
+  frontdoorOK: boolean;
+  labels?: DagLabels;
+}) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -229,7 +239,7 @@ function DagCanvas({ P, backdoorOK, frontdoorOK, labels }: { P: Params; backdoor
 
     rafRef.current = requestAnimationFrame(render);
     return ()=>{ if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [ backdoorOK, frontdoorOK, labels]);
+  }, [P, backdoorOK, frontdoorOK, labels]);
 
   return <canvas ref={ref} width={840} height={320} style={{width:"100%",height:320}}/>;
 }
@@ -241,35 +251,35 @@ function identifiability(P:Params){
 
 /* ---------- UI Helpers (small, unchanged) ---------- */
 const fmtDelta=(x:number)=> (x>=0?"+":"")+x.toFixed(3);
-const Card=({title,children}: { title:string;children:any})=><div style={st.card}>
+const Card=({title,children}:{title:string;children:any})=><div style={st.card}>
   <div style={st.cardTitle}>{title}</div>{children}
 </div>;
-const Hint=({children}: { children:any})=><div style={st.hint}>{children}</div>;
-const Number=({value,on,min,max,step}: { value:number;on:(n:number)=>void;min:number;max:number;step:number})=>
+const Hint=({children}:{children:any})=><div style={st.hint}>{children}</div>;
+const Number=({value,on,min,max,step}:{value:number;on:(n:number)=>void;min:number;max:number;step:number})=>
   <input type="number" value={value} min={min} max={max} step={step}
     onChange={e=>on(parseInt(e.target.value||"1000",10))} style={st.number}/>;
-const Slider=({label,value,set}: { label:string;value:number;set:(v:number)=>void})=>
+const Slider=({label,value,set}:{label:string;value:number;set:(v:number)=>void})=>
 <div style={{marginBottom:8}}>
   <div style={st.sliderRow}><div>{label}</div><div style={st.sliderVal}>{value.toFixed(2)}</div></div>
   <input type="range" min={0} max={1} step={0.01} value={value}
    onChange={e=>set(parseFloat(e.target.value))} style={{width:"100%"}}/>
 </div>;
-const Metric=({label,value,fmt="raw"}: { label:string;value:number;fmt?:string})=>{
+const Metric=({label,value,fmt="raw"}:{label:string;value:number;fmt?:string})=>{
   let display=value.toFixed(3);
   if(fmt==="pct")display=`${(value*100).toFixed(1)}%`;
   if(fmt==="pct100")display=`${value.toFixed(1)}%`;
   if(fmt==="delta")display=(value>=0?"+":"")+value.toFixed(3);
   return <div style={st.metric}><div style={st.metricLabel}>{label}</div><div style={st.metricValue}>{display}</div></div>;
 };
-const Section=({label,children}: { label:string;children:any})=>
+const Section=({label,children}:{label:string;children:any})=>
 <div style={st.section}><div style={st.sectionLabel}>{label}</div><div style={st.knobs}>{children}</div></div>;
-const Knob=({label,v,set}: { label:string;v:number;set:(x:number)=>void})=>
+const Knob=({label,v,set}:{label:string;v:number;set:(x:number)=>void})=>
 <div style={st.knob}>
   <div style={st.knobLabel}>{label}</div>
   <input type="range" min={0} max={1.2} step={0.01} value={v} onChange={e=>set(parseFloat(e.target.value))}/>
   <div style={st.knobVal}>{v.toFixed(2)}</div>
 </div>;
-const Badge=({ok,label}: { ok:boolean;label:string})=>
+const Badge=({ok,label}:{ok:boolean;label:string})=>
 <span style={{...st.badge,background:ok?"#12321a":"#3a1a1a",borderColor:ok?"#2f9e44":"#b91c1c"}}>{label}</span>;
 
 const st:Record<string,React.CSSProperties>={
@@ -309,38 +319,19 @@ export default function App(){
   const [W,setW]=useState(0.35); const [M,setM]=useState(0.65);
   const [WB,setWB]=useState(0.55);const [MB,setMB]=useState(0.45);
   const [N,setN]=useState(1000);
-  const [P, setP] = useState<Params>(DEFAULT);
+  const [P,setP]=useState<Params>(DEFAULT);
   const [guideOpen, setGuideOpen] = useState(true);
 
-  // --- local storage helper
-  const LS = {
-    get<T>(k:string, fallback:T):T { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; } },
-    set(k:string, v:any){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-  };
-
-  // Left panel docs toggle (persisted)
-  const [leftHelpOpen, setLeftHelpOpen] = useState<boolean>(LS.get("_leftHelpOpen", false));
-  useEffect(()=>{ LS.set("_leftHelpOpen", leftHelpOpen); }, [leftHelpOpen]);
-  // Center panel docs toggle (persisted)
-  const [centerHelpOpen, setCenterHelpOpen] = useState<boolean>(LS.get("_centerHelpOpen", false));
-  useEffect(()=>{ LS.set("_centerHelpOpen", centerHelpOpen); }, [centerHelpOpen]);
-  // Right panel docs toggle (persisted)
-  const [rightHelpOpen, setRightHelpOpen] = useState<boolean>(LS.get("_rightHelpOpen", false));
-  useEffect(()=>{ LS.set("_rightHelpOpen", rightHelpOpen); }, [rightHelpOpen]);
-
-
-
-
   // setters for params
-  const setBaseS = (v: number) => setP((p: Params) => ({ ...p, baseS: v }));
-  const setAW    = (v: number) => setP((p: Params) => ({ ...p, aW: v }));
-  const setAM    = (v: number) => setP((p: Params) => ({ ...p, aM: v }));
-  const setNS    = (v: number) => setP((p: Params) => ({ ...p, nS: v }));
-  const setBaseT = (v: number) => setP((p: Params) => ({ ...p, baseT: v }));
-  const setBS    = (v: number) => setP((p: Params) => ({ ...p, bS: v }));
-  const setNT    = (v: number) => setP((p: Params) => ({ ...p, nT: v }));
-  const setCW    = (v: number) => setP((p: Params) => ({ ...p, cW: v }));
-  const setThrT  = (v: number) => setP((p: Params) => ({ ...p, thrT: v }));
+  const setBaseS = (v: number) => setP(p => ({ ...p, baseS: v }));
+  const setAW    = (v: number) => setP(p => ({ ...p, aW: v }));
+  const setAM    = (v: number) => setP(p => ({ ...p, aM: v }));
+  const setNS    = (v: number) => setP(p => ({ ...p, nS: v }));
+  const setBaseT = (v: number) => setP(p => ({ ...p, baseT: v }));
+  const setBS    = (v: number) => setP(p => ({ ...p, bS: v }));
+  const setNT    = (v: number) => setP(p => ({ ...p, nT: v }));
+  const setCW    = (v: number) => setP(p => ({ ...p, cW: v }));
+  const setThrT  = (v: number) => setP(p => ({ ...p, thrT: v }));
   const resetParams = () => setP(DEFAULT);
 
   const [auto,setAuto]=useState(false);
@@ -421,7 +412,7 @@ export default function App(){
           if(st.target==="MB") setMB(st.value);
           if(st.target==="budget") setBudget(st.value);
         }
-        if(st.kind==="param") setP((p: Params) =>({...p,[st.name]:st.value}));
+        if(st.kind==="param") setP(p=>({...p,[st.name]:st.value}));
       }
     }finally{ setAuto(false); setAutoRunning(false); }
   }
@@ -561,20 +552,6 @@ export default function App(){
       >
         {/* ================= LEFT SIDEBAR ================= */}
         <div style={{ gridArea: "left" }} className="min-w-0 pr-2">
-          {/* Left column header + help */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-gray-300">Simulation Controls</div>
-            <button
-              onClick={() => setLeftHelpOpen(v => !v)}
-              className="text-xs rounded px-2 py-1 bg-white/10 hover:bg-white/15"
-              title="Explain this panel"
-              aria-expanded={leftHelpOpen}
-            >
-              {leftHelpOpen ? "Hide help" : "Help ?"}
-            </button>
-          </div>
-          {leftHelpOpen && <LeftPanelGuide />}
-
           <div className="space-y-3">
             {/* Theater + Episode */}
             <div className="grid grid-cols-2 gap-3">
@@ -644,28 +621,6 @@ export default function App(){
         {/* ================= CENTER COLUMN (always rendered) ================= */}
         <div style={{ gridArea: "center" }} className="min-w-0 px-2">
           {/* Domain + Mode */}
-          {/* Center column header + help */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-gray-300">Causal Graph & Equations</div>
-            <button
-              onClick={() => setCenterHelpOpen(v => !v)}
-              className="text-xs rounded px-2 py-1 bg-white/10 hover:bg-white/15"
-              title="Explain this panel"
-              aria-expanded={centerHelpOpen}
-            >
-              {centerHelpOpen ? "Hide help" : "Help ?"}
-            </button>
-          </div>
-          {centerHelpOpen && <CenterPanelGuide
-            idFlags={idFlags}
-            P={P}
-            ateA={ateA}
-            ateB={ateB}
-            ateAtoB={ateAtoB}
-            policyWin={policyWin}
-            policyTitle={policyTitle}
-          />}
-
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             {/* Domain Theater (global) */}
             <div className="flex items-center gap-2">
@@ -804,24 +759,6 @@ export default function App(){
         {guideOpen && (
           <aside style={{ gridArea: "right" }} className="min-w-0 pl-2">
             <div className="rounded-xl bg-[#161922] p-3 md:p-2 shadow border-l border-white/10 h-full overflow-auto">
-              {/* Right column header + help */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-semibold text-gray-300">Guided Training</div>
-                <button
-                  onClick={() => setRightHelpOpen(v => !v)}
-                  className="text-xs rounded px-2 py-1 bg-white/10 hover:bg-white/15"
-                  title="Explain this panel"
-                  aria-expanded={rightHelpOpen}
-                >
-                  {rightHelpOpen ? "Hide help" : "Help ?"}
-                </button>
-              </div>
-              {rightHelpOpen && <RightPanelGuide
-                 scenarioIdx={scenarioIdx}
-                 stepIdx={stepIdx}
-                 totalSteps={(SCENARIOS[scenarioIdx]?.steps?.length)||1}
-              />}
-
               <TrainingPanel
                 open
                 scenarioIdx={scenarioIdx}
@@ -839,193 +776,3 @@ export default function App(){
   );
 }
 
-
-/* ---------------------------------------------
-   In-app documentation for the Left Panel
-   --------------------------------------------- */
-function LeftPanelGuide(){
-  return (
-    <div className="rounded-lg bg-[#141924] border border-white/10 p-3 mb-3 text-sm leading-relaxed">
-      <div className="font-medium text-gray-100 mb-2">Left Panel — What you’re seeing</div>
-
-      <div className="space-y-3 text-gray-300">
-        {/* Theaters */}
-        <section>
-          <div className="font-semibold text-gray-200">1) Two Theaters (A & B)</div>
-          <p className="mt-1">
-            You’re running the <b>same causal structure</b> in two environments: <b>Theater A</b> and <b>Theater B</b>.
-            Structure = the equations and graph (S→T→I, with W and M as covariates). Environments differ only by
-            <b> conditions</b> (the values of controls), not by the causal graph itself.
-          </p>
-          <ul className="list-disc pl-5 mt-1">
-            <li><b>Theater switch</b> (A/B) changes which dataset is “active” for metrics.</li>
-            <li>Both can run with different Weather/Morale baselines, so you can compare response surfaces.</li>
-          </ul>
-        </section>
-
-        {/* Weather / Morale */}
-        <section>
-          <div className="font-semibold text-gray-200">2) Conditions: Weather (W) &amp; Morale (M)</div>
-          <p className="mt-1">
-            These are environment knobs. They feed into the structural equations and alter the distribution of outcomes.
-            In the default model, <b>Supply S</b> decreases with harsh weather and low morale.
-          </p>
-          <div className="bg-black/20 rounded p-2 mt-2 text-[13px]">
-            <div className="opacity-80 mb-1">Supply equation (conceptual):</div>
-            <code>S = baseS − aW·W − aM·(1−M) + nS·ε<sub>S</sub></code>
-            <div className="opacity-80 mt-2">Tempo and Initiative:</div>
-            <code className="block">T = baseT + bS·S + nT·ε<sub>T</sub></code>
-            <code className="block">I = step( T − cW·W − thrT )</code>
-          </div>
-          <ul className="list-disc pl-5 mt-2">
-            <li><b>W↑</b> (worse weather) tends to <b>reduce S</b>, which can reduce T and lower chance of I=1.</li>
-            <li><b>M↑</b> improves S (via 1−M term), often raising T and the chance of success.</li>
-            <li>The direct term <b>cW·W</b> lets Weather affect Initiative even after controlling for T.</li>
-          </ul>
-        </section>
-
-        {/* S/T/I cards */}
-        <section>
-          <div className="font-semibold text-gray-200">3) Metrics: S, T, and I</div>
-          <ul className="list-disc pl-5 mt-1">
-            <li><b>S (Supply)</b>: logistics/inputs readiness. Average shown is mean of simulated rows.</li>
-            <li><b>T (Tempo)</b>: operational tempo derived from S. Higher S → likely higher T.</li>
-            <li><b>I (Initiative)</b>: binary success indicator (0/1). We show <b>Initiative Success %</b>
-                as the average of I×100.</li>
-          </ul>
-        </section>
-
-        {/* Rolling chart + Play */}
-        <section>
-          <div className="font-semibold text-gray-200">4) Rolling Initiative Success (mini chart)</div>
-          <p className="mt-1">
-            When you press <b>Play</b>, the app gently jitters the active theater’s W and M every 500ms (bounded random
-            walk). After each tick, we recompute the simulation and append the latest <b>I%</b> to the chart window
-            (last 120 points). This lets you <b>see stability vs sensitivity</b> to changing conditions.
-          </p>
-          <ul className="list-disc pl-5 mt-1">
-            <li><b>Pause</b> freezes the random walk; stats remain fixed until you move sliders.</li>
-            <li><b>Clear Chart</b> wipes the rolling window (useful between experiments).</li>
-            <li><b>N (Episode Count)</b> controls Monte Carlo sample size; larger N → smoother (less noisy) estimates.</li>
-          </ul>
-        </section>
-
-        {/* Why A vs B matters */}
-        <section>
-          <div className="font-semibold text-gray-200">5) Why run two theaters?</div>
-          <p className="mt-1">
-            It demonstrates <b>transport</b>: learning an effect under one covariate distribution (A) and estimating
-            what happens under another (B). If structure holds but conditions change, you practice moving from
-            <i>“what worked here”</i> to <i>“what should work there.”</i>
-          </p>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------------------------------------
-   In-app documentation for the CENTER panel
-   --------------------------------------------- */
-function CenterPanelGuide({
-  idFlags,
-  
-  ateA,
-  ateB,
-  ateAtoB,
-  policyWin,
-  policyTitle
-}: { 
-  idFlags: {backdoorOK:boolean; frontdoorOK:boolean};
-  P: any;
-  ateA: number;
-  ateB: number;
-  ateAtoB: number;
-  policyWin: number;
-  policyTitle: string;
-}){
-  return (
-    <div className="rounded-lg bg-[#141924] border border-white/10 p-3 mb-3 text-sm leading-relaxed">
-      <div className="font-medium text-gray-100 mb-2">Center Panel — DAG & Structural Model</div>
-
-      <section className="space-y-2 text-gray-300">
-        <div className="font-semibold text-gray-200">1) Causal Graph (DAG)</div>
-        <p>
-          The <b>DAG</b> lays out which variables cause which. Here, <b>S → T → I</b> is the core chain.
-          Weather (<b>W</b>) and Morale (<b>M</b>) influence <b>S</b>; Weather may also directly affect <b>I</b> via <b>cW</b>.
-        </p>
-        <p>
-          The badges reflect identifiability tests:
-          <span className={`ml-2 px-2 py-0.5 rounded ${idFlags.backdoorOK ? "bg-emerald-600/20 text-emerald-300" : "bg-emerald-600/10 text-emerald-800"}`}>Back-door</span>
-          <span className={`ml-2 px-2 py-0.5 rounded ${idFlags.frontdoorOK ? "bg-rose-600/20 text-rose-300" : "bg-rose-600/10 text-rose-800"}`}>Front-door</span>
-        </p>
-      </section>
-
-      <section className="space-y-2 text-gray-300 mt-3">
-        <div className="font-semibold text-gray-200">2) Structural Equations (live)</div>
-        <p>We simulate with these equations (parameters are the sliders below each card):</p>
-        <div className="bg-black/20 rounded p-2 text-[13px] leading-6">
-          <code className="block">S = baseS − aW·W − aM·(1−M) + nS·ε<sub>S</sub></code>
-          <code className="block">T = baseT + bS·S + nT·ε<sub>T</sub></code>
-          <code className="block">I = step( T − cW·W − thrT )</code>
-        </div>
-        <p className="text-[13px] opacity-90">
-          Adjusting these coefficients changes the <b>response surface</b> of outcomes under different W/M conditions.
-        </p>
-      </section>
-
-      <section className="space-y-2 text-gray-300 mt-3">
-        <div className="font-semibold text-gray-200">3) Transport & Policy</div>
-        <ul className="list-disc pl-5">
-          <li><b>ATE_A</b> and <b>ATE_B</b> are observed effects in each theater.</li>
-          <li><b>ATE_A→B</b> estimates how A’s effect would look under B’s covariates (transport).</li>
-          <li><b>{policyTitle}</b> computes expected success uplift from allocating a budget to boost Supply.</li>
-        </ul>
-        <div className="bg-black/20 rounded p-2 text-[13px] leading-6 mt-1">
-          <div>ATE_A: <b>{ateA.toFixed(3)}</b> &nbsp; ATE_B: <b>{ateB.toFixed(3)}</b> &nbsp; ATE_A→B: <b>{ateAtoB.toFixed(3)}</b></div>
-          <div>Policy expected wins: <b>{policyWin.toFixed(1)}%</b></div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* ---------------------------------------------
-   In-app documentation for the RIGHT panel
-   --------------------------------------------- */
-function RightPanelGuide({
-  scenarioIdx,
-  stepIdx,
-  totalSteps
-}: { 
-  scenarioIdx: number;
-  stepIdx: number;
-  totalSteps: number;
-}){
-  return (
-    <div className="rounded-lg bg-[#141924] border border-white/10 p-3 mb-3 text-sm leading-relaxed">
-      <div className="font-medium text-gray-100 mb-2">Right Panel — Guided Training</div>
-
-      <section className="space-y-2 text-gray-300">
-        <p>
-          This panel walks you through <b>scenarios</b> composed of one or more <b>steps</b>. Each step can
-          highlight a causal concept (e.g., back-door adjustment), tweak parameters, or instruct you to observe
-          specific metrics/plots.
-        </p>
-        <ul className="list-disc pl-5">
-          <li><b>Prev / Next</b> moves between steps inside the selected scenario.</li>
-          <li><b>Scenario Picker</b> resets step index to 0 for the chosen scenario.</li>
-          <li>If a scenario has a single step, Next/Prev won’t appear to “move”.</li>
-        </ul>
-        <div className="bg-black/20 rounded p-2 mt-2 text-[13px]">
-          <div>Scenario index: <b>{scenarioIdx}</b></div>
-          <div>Step: <b>{stepIdx+1}</b> / <b>{Math.max(1, totalSteps)}</b></div>
-        </div>
-        <p className="text-[13px] opacity-90 mt-2">
-          To create multi-step flows, add more entries to <code>SCENARIOS[i].steps</code> in <code>src/content/scenarios.ts</code>.
-          Steps can include <code>emphasis</code>, <code>param</code>, <code>set</code>, <code>wait</code>, or <code>play</code> actions.
-        </p>
-      </section>
-    </div>
-  );
-}
