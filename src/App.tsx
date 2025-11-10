@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { WAR_COLLEGE_LESSONS } from "./companion/chapters-war-college";
 import type { Lesson, AutoStep } from "./companion/chapters-war-college";
-import { TrainingPanel, SCENARIOS } from "./training/GuidedTraining";
+import { SCENARIOS } from "./training/GuidedTraining";
 import { THEATERS } from "./theaters/config";
 import type { TheaterId, ModeId } from "./theaters/config";
 
@@ -295,6 +295,152 @@ const st:Record<string,React.CSSProperties>={
   sliderValNum:{},
   badge:{display:"inline-block",border:"1px solid",borderRadius:999,padding:"4px 8px",fontSize:12,color:"#e6f4ea"},
 };
+
+/* -------------------------- TrainingHub (Right Panel) -------------------------- */
+type TrainingTab = "lesson" | "scenario";
+
+function TrainingHub({
+  scenarioIdx, stepIdx, onClose, onPrev, onNext, onPickScenario, lessons, lesson, setLesson,
+}: {
+  scenarioIdx: number;
+  stepIdx: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onPickScenario: (i: number) => void;
+  lessons: Lesson[];
+  lesson: Lesson;
+  setLesson: (l: Lesson) => void;
+}) {
+  const [tab, setTab] = React.useState<TrainingTab>("lesson");
+  const scenario: any = SCENARIOS[scenarioIdx] ?? { title: "Scenario", steps: [] };
+  const step: any = scenario.steps?.[stepIdx] ?? null;
+  const totalSteps = scenario.steps?.length ?? 0;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with tabs */}
+      <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">Guided Training</span>
+          <div className="inline-flex rounded bg-white/5 p-0.5">
+            <button onClick={() => setTab("lesson")} className={`px-2 py-1 text-xs rounded ${tab === "lesson" ? "bg-white/10" : "opacity-70 hover:opacity-100"}`}>Lessons</button>
+            <button onClick={() => setTab("scenario")} className={`px-2 py-1 text-xs rounded ${tab === "scenario" ? "bg-white/10" : "opacity-70 hover:opacity-100"}`}>Scenarios</button>
+          </div>
+        </div>
+        <button onClick={onClose} className="rounded bg-white/10 px-2 py-1 text-xs hover:bg-white/15">Hide help</button>
+      </div>
+
+      {/* Fixed summary bar */}
+      <div className="border-b border-white/10 px-3 py-2 text-[12px] text-gray-300">
+        {tab === "lesson" ? (
+          <div><b>Right Panel — Guided Lessons</b>. Narrative, step-by-step concepts with small exercises.</div>
+        ) : (
+          <div><b>Scenario Playbook</b>. Multi-step A/B runs: orders → observe → interpret.</div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        {tab === "lesson" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-gray-400">Lesson</span>
+              <select
+                value={String(lesson.id)}
+                onChange={(e) => {
+                  const picked = lessons.find(L => String(L.id) === e.target.value) || lessons[0];
+                  setLesson(picked);
+                }}
+                className="bg-[#0f131c] border border-white/10 rounded px-2 py-1 text-sm min-w-[14rem]"
+              >
+                {lessons.map(L => (
+                  <option key={String(L.id)} value={String(L.id)}>{L.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded bg-[#121620] p-3 text-sm leading-6">
+              <div className="text-[13px] font-semibold mb-2">{lesson.title}</div>
+              {Array.isArray((lesson as any).bullets) && (lesson as any).bullets.length > 0 && (
+                <ul className="list-disc pl-5 space-y-1">
+                  {(lesson as any).bullets.map((b: string, i: number) => (
+                    <li key={i} className="text-gray-300">{b}</li>
+                  ))}
+                </ul>
+              )}
+              {(lesson as any).markdown && (
+                <pre className="mt-2 whitespace-pre-wrap text-[13px] text-gray-300">{(lesson as any).markdown}</pre>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === "scenario" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-gray-400">Scenario</span>
+              <select
+                value={String(scenarioIdx)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onPickScenario(parseInt(e.currentTarget.value,10))}
+                className="bg-[#0f131c] border border-white/10 rounded px-2 py-1 text-sm min-w-[14rem]"
+              >
+                {SCENARIOS.map((S, i) => (
+                  <option key={i} value={String(i)}>{(S as any).title ?? `Scenario ${i + 1}`}</option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded bg-[#121620] p-3 text-sm leading-6">
+              <div className="text-[13px] font-semibold mb-1">{scenario.title}</div>
+              {scenario.subtitle && <div className="text-[12px] text-gray-400 mb-2">{scenario.subtitle}</div>}
+              {totalSteps > 0 ? (
+                <>
+                  <div className="mb-2 text-[12px] text-gray-400">Step: <b>{stepIdx + 1}</b> / {totalSteps}</div>
+                  {step?.orders && (
+                    <>
+                      <div className="text-[12px] font-semibold">Orders</div>
+                      <ul className="list-decimal pl-5 mb-2 space-y-1">
+                        {step.orders.map((t: string, i: number) => (<li key={i} className="text-gray-300">{t}</li>))}
+                      </ul>
+                    </>
+                  )}
+                  {step?.observe && (
+                    <>
+                      <div className="text-[12px] font-semibold">Observe</div>
+                      <ul className="list-disc pl-5 mb-2 space-y-1">
+                        {step.observe.map((t: string, i: number) => (<li key={i} className="text-gray-300">{t}</li>))}
+                      </ul>
+                    </>
+                  )}
+                  {step?.interpretation && (
+                    <>
+                      <div className="text-[12px] font-semibold">Interpretation</div>
+                      <div className="text-gray-300">{step.interpretation}</div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-gray-400 text-[13px]">This scenario has no steps yet. Add them in <code>src/content/scenarios.ts</code>.</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer controls */}
+      <div className="border-t border-white/10 px-3 py-2 flex items-center justify-between">
+        {tab === "scenario" ? (
+          <>
+            <button onClick={onPrev} className="rounded bg-white/10 px-3 py-1 text-xs hover:bg-white/15 disabled:opacity-40" disabled={totalSteps <= 1}>◀ Prev</button>
+            <div className="text-[12px] text-gray-400">Step {Math.min(stepIdx + 1, Math.max(1, totalSteps))}/{Math.max(1, totalSteps)}</div>
+            <button onClick={onNext} className="rounded bg-emerald-600/20 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-600/25 disabled:opacity-40" disabled={totalSteps <= 1}>Next ▶</button>
+          </>
+        ) : (
+          <div className="text-[12px] text-gray-500">Use <b>Scenarios</b> to run A/B orders with observations.</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function App(){
   /* ---------- touch module-scoped helpers so TS doesn't flag them when unused ---------- */
@@ -822,14 +968,18 @@ export default function App(){
                  totalSteps={(SCENARIOS[scenarioIdx]?.steps?.length)||1}
               />}
 
-              <TrainingPanel
-                open
+               <TrainingHub
                 scenarioIdx={scenarioIdx}
                 stepIdx={stepIdx}
                 onClose={() => setGuideOpen(false)}
                 onPrev={() => setStepIdx(s => Math.max(0, s - 1))}
                 onNext={() => setStepIdx(s => Math.min(curScenario.steps.length - 1, s + 1))}
-                onPickScenario={(i) => { setScenarioIdx(i); setStepIdx(0); }}
+                onPickScenario={(i: number) => { setScenarioIdx(i); setStepIdx(0); }}
+              
+                /* —— These three props were missing —— */
+                lessons={WAR_COLLEGE_LESSONS}
+                lesson={lesson}
+                setLesson={setLesson}
               />
             </div>
           </aside>
