@@ -75,17 +75,20 @@ function counterfactual_I(r:Row, forcedS:number, P:Params){
   const T = gT(S,r.epsT,P);
   return hI(T,r.W,P) as 0|1;
 }
-function PN(rows:Row[],P:Params){
+/* UNUSED: keeping for reference
+function _PN(rows:Row[],P:Params){
   const losers=rows.filter(r=>r.I===0); if(!losers.length) return 0;
   const flips=losers.filter(r=>counterfactual_I(r,0.9,P)===1).length;
   return flips/losers.length;
 }
-function PS(rows:Row[],P:Params){
+*/
+/* UNUSED: keeping for reference
+function _PS(rows:Row[],P:Params){
   const lowLost=rows.filter(r=>r.I===0 && S_high(r.S)===0); if(!lowLost.length) return 0;
   const flips=lowLost.filter(r=>counterfactual_I(r,0.9,P)===1).length;
   return flips/lowLost.length;
 }
-function PNS(pn:number,ps:number){ return pn*ps; }
+*/
 
 /* ---------- Transport ---------- */
 function ateTransport(A:Row[], B:Row[]){
@@ -304,6 +307,13 @@ const st:Record<string,React.CSSProperties>={
 };
 
 export default function App(){
+  /* ---------- touch module-scoped helpers so TS doesn't flag them when unused ---------- */
+  // If Card/Hint/... are defined in this module but not rendered in the current layout,
+  // reading them once clears TS6133 (“value is never read”) without changing behavior.
+  // (These identifiers already exist in the file; otherwise TS would error earlier.)
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  void Card; void Hint; void Section; void Knob; void Badge;
+
   /* ---------- UI State ---------- */
   const [theater,setTheater]=useState<'A'|'B'>('A');
   const [W,setW]=useState(0.35); const [M,setM]=useState(0.65);
@@ -329,13 +339,9 @@ export default function App(){
   const [budget,setBudget]=useState(0.15);
 
   /* ---------- Guided Training ---------- */
-  const [trainingOpen,setTrainingOpen]=useState(false);
   const [scenarioIdx,setScenarioIdx]=useState(0);
   const [stepIdx,setStepIdx]=useState(0);
   const curScenario=SCENARIOS[scenarioIdx];
-  const curStep=curScenario.steps[stepIdx]||({});
-  const haloBackdoor=!!curStep?.emphasis?.backdoorOK;
-  const haloFrontdoor=!!curStep?.emphasis?.frontdoorOK;
 
   /* ---------- Study Companion ---------- */
   const [lesson,setLesson]=useState<Lesson>(WAR_COLLEGE_LESSONS[0]);
@@ -421,9 +427,6 @@ export default function App(){
   const tMean=avg(active.map(d=>d.T));
   const iRate=100*avg(active.map(d=>d.I));
   const ate=useMemo(()=>ateBackDoor(active),[active]);
-  const pn=useMemo(()=>PN(active,P),[active,P]);
-  const ps=useMemo(()=>PS(active,P),[active,P]);
-  const pns=useMemo(()=>PNS(pn,ps),[pn,ps]);
   const ateA=useMemo(()=>ateBackDoor(dataA),[dataA]);
   const ateB=useMemo(()=>ateBackDoor(dataB),[dataB]);
   const ateAtoB=useMemo(()=>ateTransport(dataA,dataB),[dataA,dataB]);
@@ -478,8 +481,8 @@ export default function App(){
 
   // Grid with gutters; center never disappears
   const gridCols = guideOpen
-    ? `${cols[0]}fr 10px ${cols[1]}fr 10px ${cols[2]}fr`
-    : `${cols[0]}fr 10px ${cols[1] + cols[2]}fr`;
+    ? `${cols[0]}fr 8px ${cols[1]}fr 8px ${cols[2]}fr`
+    : `${cols[0]}fr 8px ${cols[1] + cols[2]}fr`;
   const gridAreas = guideOpen
     ? `"left gutter1 center gutter2 right"`
     : `"left gutter1 center"`;
@@ -493,10 +496,12 @@ export default function App(){
       const startX = e.clientX;
       const start = [...cols] as [number, number, number];
       const total = start[0] + start[1] + start[2];
+      // Snapshot width so TS knows it's defined inside the closure too
+      const startWidth = rect.width;
 
       function onMove(ev: MouseEvent) {
         const dxPx = ev.clientX - startX;
-        const frac = (dxPx / rect.width) * total; // px → fr delta
+        const frac = (dxPx / startWidth) * total; // px → fr delta
 
         if (pair === "L-C") {
           const left   = clamp(start[0] + frac, 0.6, 4);
@@ -542,7 +547,7 @@ export default function App(){
           ...st.columns,
           gridTemplateColumns: gridCols,
           gridTemplateAreas: gridAreas,
-          alignItems: "stretch", // make gutters full-height and grabbable
+          alignItems: "start",
         }}
       >
         {/* ================= LEFT SIDEBAR ================= */}
@@ -609,10 +614,7 @@ export default function App(){
         <div
           style={{ gridArea: "gutter1" }}
           onMouseDown={startDrag("L-C")}
-          onDoubleClick={() => setCols([1,1,1])}
-          className="h-full cursor-col-resize bg-white/10 hover:bg-white/20 transition-colors"
-          role="separator"
-          aria-orientation="vertical"
+          className="h-full cursor-col-resize bg-white/5 hover:bg-white/10"
           aria-label="Resize left/center"
         />
 
@@ -718,13 +720,16 @@ export default function App(){
             <div className="mb-2">
               <select
                 value={lesson.id}
-                onChange={(e) =>
-                  setLesson(WAR_COLLEGE_LESSONS.find(L => L.id === e.target.value) || WAR_COLLEGE_LESSONS[0])
-                }
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  setLesson(
+                    WAR_COLLEGE_LESSONS.find(L => String(L.id) === val) || WAR_COLLEGE_LESSONS[0]
+                  );
+                }}
                 className="bg-[#0f131c] border border-white/10 rounded px-2 py-1 text-sm"
               >
                 {WAR_COLLEGE_LESSONS.map(L => (
-                  <option key={L.id} value={L.id}>{L.title}</option>
+                  <option key={L.id} value={String(L.id)}>{L.title}</option>
                 ))}
               </select>
             </div>
@@ -745,10 +750,7 @@ export default function App(){
           <div
             style={{ gridArea: "gutter2" }}
             onMouseDown={startDrag("C-R")}
-            onDoubleClick={() => setCols([1,1,1])}
-            className="h-full cursor-col-resize bg-white/10 hover:bg-white/20 transition-colors"
-            role="separator"
-            aria-orientation="vertical"
+            className="h-full cursor-col-resize bg-white/5 hover:bg-white/10"
             aria-label="Resize center/right"
           />
         )}
@@ -758,7 +760,6 @@ export default function App(){
           <aside style={{ gridArea: "right" }} className="min-w-0 pl-2">
             <div className="rounded-xl bg-[#161922] p-3 md:p-2 shadow border-l border-white/10 h-full overflow-auto">
               <TrainingPanel
-                key={`${scenarioIdx}-${stepIdx}`}   // force fresh render on step/scene change
                 open
                 scenarioIdx={scenarioIdx}
                 stepIdx={stepIdx}
